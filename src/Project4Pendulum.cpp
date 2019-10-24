@@ -46,17 +46,18 @@ void pendulumODE(const ompl::control::ODESolver::StateType & q, const ompl::cont
                  ompl::control::ODESolver::StateType & qdot)
 {
     // TODO: Fill in the ODE for the pendulum's dynamics
-    // Retreive Orientation/Control Value Omega
-    const double *u = c->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
-    const double theta = u[0]; // Angle of pendulum
-    const double omega = u[1]; // Angular velocity
 
-    const double torque = 3; // Not sure how this should be passed in 
+    // Retreive control value of torque
+    const double *u = c->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
+    const double t = u[0]; // Torque
+
+    const double omega = q[0]; // Retrieve velocity
+    const double theta = q[1]; // Retrieve angle
 
     qdot.resize(q.size(), 0); // Initialize qdot as zeros
 
     qdot[0] = omega;
-    qdot[1] = -1 * GRAVITY * cos(theta) + torque;
+    qdot[1] = -1 * GRAVITY * cos(theta) + t;
 }
 
 ompl::control::SimpleSetupPtr createPendulum(double torque)
@@ -93,15 +94,31 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
     ompl::base::RealVectorBounds cbounds(1);
     cbounds.setLow(-1 * abs(torque));
     cbounds.setHigh(abs(torque));
-    controlSpace->setBounds(cbounds);
+    controlSpace->setBounds(cbounds); // Set control bounds on the control space
 
     // Define a simple setup class
     ompl::control::SimpleSetup ss(controlSpace);
 
-    // Return simple setup
-    ompl::control::SimpleSetupPtr ssptr(ss);
+    // Return simple setup ptr
+    ompl::control::SimpleSetupPtr ssptr = std::make_shared<ompl::control::SimpleSetup>(ss); // have no idea if this is right lol, whats up with SimpleSetupPtr?
+    // ompl::control::SimpleSetupPtr ssptr(ss);
+    // ompl::control::SimpleSetupPtr ssptr;
     return ssptr;
 
+}
+
+bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::State *state)
+{
+    // cast the abstract state type to the type we expect
+    const auto *r1so2state = state->as<ompl::base::CompoundState>();
+   
+    // extract the first component of the state and cast it to what we expect
+    const auto *omeg = r1so2state->as<ompl::base::RealVectorStateSpace::StateType>(0);
+   
+    // extract the second component of the state and cast it to what we expect
+    const auto *thet = r1so2state->as<ompl::base::SO2StateSpace::StateType>(1);
+
+    return si->satisfiesBounds(state) && (const void*)omeg != (const void*)thet;
 }
 
 void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
@@ -112,14 +129,27 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     auto cspace = ss->getControlSpace();
     auto space  = ss->getStateSpace();
 
-    // Construct instance of space information from this control space
+    // I literally dont know what im doing from {HERE}
+
+    // construct an instance of  space information from this control space
     auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
 
+    ompl::control::ODESolverPtr odeSolver (new ompl::control::ODEBasicSolver<> (si, &pendulumODE));
 
-    // set state validity checker TODO: Define isStateValid
-    si->setStateValidityChecker([&si](const ompl::base::State *state) { return isStateValid(si.get(), state); });
 
-    // Set state propagation routine
+    // set the state propagation routine
+    ss->setStatePropagator(ompl::control::ODESolver::getStatePropagator(odeSolver));
+    // ss->setStatePropagator(propagate);
+
+    // set state validity checking for this space
+    ss->setStateValidityChecker([&ss](const ompl::base::State *state) { return isStateValid(ss->getSpaceInformation().get(), state); });
+
+    // TO {HERE} ! !!!
+    
+
+
+
+
 
 
     // Create start state
@@ -132,24 +162,23 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     goal[0] = 0; // Goal velocity
     goal[1] = M_PI/2; // Goal position
 
+    // set the start and goal states
+    ss->setStartAndGoalStates(start, goal, 0.05);
 
-    // Create problem instance
-    auto pdef(std::make_shared<ompl::base::ProblemDefinition>(si));
-
-    // Set the start and goal states
-    pdef->setStartAndGoalStates(start, goal, 0.1);
-
-    // Create planner for space
+    // attempt to solve the problem within one second of planning time
+    ompl::base::PlannerStatus solved = ss->solve(10.0);
 
 
-    // Set the problem we are trying to solve for the planner
-
-
-    // Perform setup steps for the planner
-
-    
-
-
+    if (solved)
+    {
+        std::cout << "Found solution:" << std::endl;
+        // print the path to screen
+        ss->getSolutionPath().printAsMatrix(std::cout);
+    } 
+    else
+    {
+        std::cout << "No solution found" << std::endl;
+    }
 }
 
 void benchmarkPendulum(ompl::control::SimpleSetupPtr &/* ss */)
