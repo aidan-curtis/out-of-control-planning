@@ -51,8 +51,8 @@ void pendulumODE(const ompl::control::ODESolver::StateType & q, const ompl::cont
     const double *u = c->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
     const double t = u[0]; // Torque
 
-    const double omega = q[0]; // Retrieve velocity
-    const double theta = q[1]; // Retrieve angle
+    const double theta = q[0]; // Retrieve angle
+    const double omega = q[1]; // Retrieve velocity
 
     qdot.resize(q.size(), 0); // Initialize qdot as zeros
 
@@ -67,7 +67,7 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
     // return nullptr;
 
     // STATE SPACE SETUP
-    ompl::base::StateSpacePtr r1so2;
+    ompl::base::StateSpacePtr so2r1;
 
     // Create R^1 component of the State Space (angular velocity omega)
     auto r1 = std::make_shared<ompl::base::RealVectorStateSpace>(1);
@@ -84,11 +84,11 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
     auto so2 = std::make_shared<ompl::base::SO2StateSpace>();
 
     // Create compound state space (R^1 x SO(2))
-    r1so2 = r1 + so2;
+    so2r1 =  so2 + r1;
 
 
     // CONTROL SPACE SETUP
-    auto controlSpace = std::make_shared<ompl::control::RealVectorControlSpace>(r1so2, 1); // Take in our state space, with 1 control
+    auto controlSpace = std::make_shared<ompl::control::RealVectorControlSpace>(so2r1, 1); // Take in our state space, with 1 control
     
     // Set bounds on our control space torque
     ompl::base::RealVectorBounds cbounds(1);
@@ -110,15 +110,15 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
 bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::State *state)
 {
     // cast the abstract state type to the type we expect
-    const auto *r1so2state = state->as<ompl::base::CompoundState>();
-   
-    // extract the first component of the state and cast it to what we expect
-    const auto *omeg = r1so2state->as<ompl::base::RealVectorStateSpace::StateType>(0);
+    const auto *so2r1state = state->as<ompl::base::CompoundState>();
    
     // extract the second component of the state and cast it to what we expect
-    const auto *thet = r1so2state->as<ompl::base::SO2StateSpace::StateType>(1);
+    const auto *thet = so2r1state->as<ompl::base::SO2StateSpace::StateType>(0);
 
-    return si->satisfiesBounds(state) && (const void*)omeg != (const void*)thet;
+    // extract the first component of the state and cast it to what we expect
+    const auto *omeg = so2r1state->as<ompl::base::RealVectorStateSpace::StateType>(1);
+
+    return si->satisfiesBounds(state);// && (const void*)omeg != (const void*)thet;
 }
 
 void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
@@ -126,21 +126,21 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     // TODO: Do some motion planning for the pendulum
     // choice is what planner to use.
 
-    auto cspace = ss->getControlSpace();
+    //auto cspace = ss->getControlSpace();
     auto space  = ss->getStateSpace();
 
     // I literally dont know what im doing from {HERE}
 
     // construct an instance of  space information from this control space
-    auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
+    //auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
 
-    ompl::control::ODESolverPtr odeSolver (new ompl::control::ODEBasicSolver<> (si, &pendulumODE));
+    ompl::control::ODESolverPtr odeSolver (new ompl::control::ODEBasicSolver<> (ss->getSpaceInformation(), &pendulumODE));
 
 
     // set the state propagation routine
     ss->setStatePropagator(ompl::control::ODESolver::getStatePropagator(odeSolver));
     // ss->setStatePropagator(propagate);
-
+    ss->getSpaceInformation()->setPropagationStepSize(0.01);
     // set state validity checking for this space
     ss->setStateValidityChecker([&ss](const ompl::base::State *state) { return isStateValid(ss->getSpaceInformation().get(), state); });
 
@@ -154,19 +154,19 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
 
     // Create start state
     ompl::base::ScopedState<> start(space);
-    start[0] = 0; // Initial velocity
-    start[1] = -1 * M_PI/2; // Initial position
+    start[0] = -1 * M_PI/2; // Initial position
+    start[1] = 0; // Initial velocity
 
     // Create goal state
     ompl::base::ScopedState<> goal(space);
-    goal[0] = 0; // Goal velocity
-    goal[1] = M_PI/2; // Goal position
+    goal[0] = M_PI/2; // Goal position
+    goal[1] = 0; // Goal velocity
 
     // set the start and goal states
     ss->setStartAndGoalStates(start, goal, 0.05);
 
     // attempt to solve the problem within one second of planning time
-    ompl::base::PlannerStatus solved = ss->solve(10.0);
+    ompl::base::PlannerStatus solved = ss->solve(100.0);
 
 
     if (solved)
