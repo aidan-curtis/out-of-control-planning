@@ -118,7 +118,7 @@ bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::S
     // extract the first component of the state and cast it to what we expect
     const auto *omeg = so2r1state->as<ompl::base::RealVectorStateSpace::StateType>(1);
 
-    return si->satisfiesBounds(state) && (const void*)omeg != (const void*)thet;
+    return si->satisfiesBounds(state);// && (const void*)omeg != (const void*)thet;
 }
 
 void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
@@ -126,21 +126,21 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     // TODO: Do some motion planning for the pendulum
     // choice is what planner to use.
 
-    auto cspace = ss->getControlSpace();
+    //auto cspace = ss->getControlSpace();
     auto space  = ss->getStateSpace();
 
     // I literally dont know what im doing from {HERE}
 
     // construct an instance of  space information from this control space
-    auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
+    //auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
 
-    ompl::control::ODESolverPtr odeSolver (new ompl::control::ODEBasicSolver<> (si, &pendulumODE));
+    ompl::control::ODESolverPtr odeSolver (new ompl::control::ODEBasicSolver<> (ss->getSpaceInformation(), &pendulumODE));
 
 
     // set the state propagation routine
     ss->setStatePropagator(ompl::control::ODESolver::getStatePropagator(odeSolver));
     // ss->setStatePropagator(propagate);
-
+    ss->getSpaceInformation()->setPropagationStepSize(0.01);
     // set state validity checking for this space
     ss->setStateValidityChecker([&ss](const ompl::base::State *state) { return isStateValid(ss->getSpaceInformation().get(), state); });
 
