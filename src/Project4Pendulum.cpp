@@ -51,8 +51,8 @@ void pendulumODE(const ompl::control::ODESolver::StateType & q, const ompl::cont
     const double *u = c->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
     const double t = u[0]; // Torque
 
-    const double omega = q[0]; // Retrieve velocity
-    const double theta = q[1]; // Retrieve angle
+    const double omega = q[0]; // Retrieve angle
+    const double theta = q[1]; // Retrieve velocity
 
     qdot.resize(q.size(), 0); // Initialize qdot as zeros
 
@@ -84,11 +84,11 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
     auto so2 = std::make_shared<ompl::base::SO2StateSpace>();
 
     // Create compound state space (R^1 x SO(2))
-    r1so2 = r1 + so2;
+    so2r1 =  so2 + r1;
 
 
     // CONTROL SPACE SETUP
-    auto controlSpace = std::make_shared<ompl::control::RealVectorControlSpace>(r1so2, 1); // Take in our state space, with 1 control
+    auto controlSpace = std::make_shared<ompl::control::RealVectorControlSpace>(so2r1, 1); // Take in our state space, with 1 control
     
     // Set bounds on our control space torque
     ompl::base::RealVectorBounds cbounds(1);
@@ -154,13 +154,13 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
 
     // Create start state
     ompl::base::ScopedState<> start(space);
-    start[0] = 0; // Initial velocity
-    start[1] = -1 * M_PI/2; // Initial position
+    start[0] = -1 * M_PI/2; // Initial position
+    start[1] = 0; // Initial velocity
 
     // Create goal state
     ompl::base::ScopedState<> goal(space);
-    goal[0] = 0; // Goal velocity
-    goal[1] = M_PI/2; // Goal position
+    goal[0] = M_PI/2; // Goal position
+    goal[1] = 0; // Goal velocity
 
     // set the start and goal states
     ss->setStartAndGoalStates(start, goal, 0.05);
