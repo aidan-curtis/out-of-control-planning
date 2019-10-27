@@ -17,6 +17,7 @@
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
+#include <fstream>
 
 #include <cmath>
 
@@ -172,11 +173,11 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     if (solved)
     {
         std::cout << "Found solution:" << std::endl;
-        // print the path to screen
-        ss->getSolutionPath().printAsMatrix(std::cout);
+        
 
         std::ofstream fout("path.txt");
-        path.printAsMatrix(fout);
+        // print the path to screen
+        ss->getSolutionPath().printAsMatrix(fout);
         fout.close();
     } 
     else
