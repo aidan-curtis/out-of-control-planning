@@ -51,8 +51,8 @@ void pendulumODE(const ompl::control::ODESolver::StateType & q, const ompl::cont
     const double *u = c->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
     const double t = u[0]; // Torque
 
-    const double omega = q[0]; // Retrieve angle
-    const double theta = q[1]; // Retrieve velocity
+    const double theta = q[0]; // Retrieve angle
+    const double omega = q[1]; // Retrieve velocity
 
     qdot.resize(q.size(), 0); // Initialize qdot as zeros
 
@@ -67,7 +67,7 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
     // return nullptr;
 
     // STATE SPACE SETUP
-    ompl::base::StateSpacePtr r1so2;
+    ompl::base::StateSpacePtr so2r1;
 
     // Create R^1 component of the State Space (angular velocity omega)
     auto r1 = std::make_shared<ompl::base::RealVectorStateSpace>(1);
@@ -110,13 +110,13 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
 bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::State *state)
 {
     // cast the abstract state type to the type we expect
-    const auto *r1so2state = state->as<ompl::base::CompoundState>();
-   
-    // extract the first component of the state and cast it to what we expect
-    const auto *omeg = r1so2state->as<ompl::base::RealVectorStateSpace::StateType>(0);
+    const auto *so2r1state = state->as<ompl::base::CompoundState>();
    
     // extract the second component of the state and cast it to what we expect
-    const auto *thet = r1so2state->as<ompl::base::SO2StateSpace::StateType>(1);
+    const auto *thet = so2r1state->as<ompl::base::SO2StateSpace::StateType>(0);
+
+    // extract the first component of the state and cast it to what we expect
+    const auto *omeg = so2r1state->as<ompl::base::RealVectorStateSpace::StateType>(1);
 
     return si->satisfiesBounds(state) && (const void*)omeg != (const void*)thet;
 }
@@ -166,7 +166,7 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     ss->setStartAndGoalStates(start, goal, 0.05);
 
     // attempt to solve the problem within one second of planning time
-    ompl::base::PlannerStatus solved = ss->solve(10.0);
+    ompl::base::PlannerStatus solved = ss->solve(100.0);
 
 
     if (solved)
