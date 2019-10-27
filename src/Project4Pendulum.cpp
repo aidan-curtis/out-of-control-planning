@@ -174,6 +174,10 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
         std::cout << "Found solution:" << std::endl;
         // print the path to screen
         ss->getSolutionPath().printAsMatrix(std::cout);
+
+        std::ofstream fout("path.txt");
+        path.printAsMatrix(fout);
+        fout.close();
     } 
     else
     {
