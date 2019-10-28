@@ -130,8 +130,6 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     //auto cspace = ss->getControlSpace();
     auto space  = ss->getStateSpace();
 
-    // I literally dont know what im doing from {HERE}
-
     // construct an instance of  space information from this control space
     //auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
 
@@ -144,8 +142,6 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     ss->getSpaceInformation()->setPropagationStepSize(0.01);
     // set state validity checking for this space
     ss->setStateValidityChecker([&ss](const ompl::base::State *state) { return isStateValid(ss->getSpaceInformation().get(), state); });
-
-    // TO {HERE} ! !!!
     
 
 
