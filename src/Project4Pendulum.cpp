@@ -110,15 +110,6 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
 
 bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::State *state)
 {
-    // cast the abstract state type to the type we expect
-    const auto *so2r1state = state->as<ompl::base::CompoundState>();
-   
-    // extract the second component of the state and cast it to what we expect
-    const auto *thet = so2r1state->as<ompl::base::SO2StateSpace::StateType>(0);
-
-    // extract the first component of the state and cast it to what we expect
-    const auto *omeg = so2r1state->as<ompl::base::RealVectorStateSpace::StateType>(1);
-
     return si->satisfiesBounds(state);// && (const void*)omeg != (const void*)thet;
 }
 
@@ -171,7 +162,7 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
         std::cout << "Found solution:" << std::endl;
         
 
-        std::ofstream fout("path.txt");
+        std::ofstream fout("pendulum_path.txt");
         // print the path to screen
         ss->getSolutionPath().printAsMatrix(fout);
         fout.close();
