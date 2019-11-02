@@ -13,11 +13,14 @@
 #include <ompl/control/spaces/RealVectorControlSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/base/spaces/SO2StateSpace.h>
+#include <ompl/tools/benchmark/Benchmark.h>
 // The collision checker produced in project 2
 #include "CollisionChecking.h"
 #include <fstream>
 #include <cmath>
 #include <ompl/control/planners/rrt/RRT.h>
+#include <ompl/geometric/planners/rrt/RRT.h>
+
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
@@ -236,9 +239,22 @@ void planCar(ompl::control::SimpleSetupPtr & ss, int choice)
     
 }
 
-void benchmarkCar(ompl::control::SimpleSetupPtr &/* ss */)
+void benchmarkCar(ompl::control::SimpleSetupPtr & ss )
 {
-    // TODO: Do some benchmarking for the car
+        // TODO: Do some benchmarking for the pendulum
+    double runtime_limit = 60.0;
+    double memory_limit = 10000.0;  // set high because memory usage is not always estimated correctly
+    int run_count = 50;
+    std::string benchmark_name = std::string("car");
+
+    ompl::tools::Benchmark::Request request(runtime_limit, memory_limit, run_count);
+    ompl::tools::Benchmark b(*ss, benchmark_name);
+
+    // TODO: Add additional planners when they work
+    b.addPlanner(std::make_shared<ompl::geometric::RRT>(ss->getSpaceInformation()));
+
+    b.benchmark(request);
+    b.saveResultsToFile();
 }
 
 int main(int /* argc */, char ** /* argv */)

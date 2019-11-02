@@ -14,6 +14,8 @@
 #include <ompl/control/spaces/RealVectorControlSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/base/spaces/SO2StateSpace.h>
+#include <ompl/tools/benchmark/Benchmark.h>
+#include <ompl/geometric/planners/rrt/RRT.h>
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
@@ -61,6 +63,10 @@ void pendulumODE(const ompl::control::ODESolver::StateType & q, const ompl::cont
     qdot[1] = -1 * GRAVITY * cos(theta) + t;
 }
 
+bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::State *state)
+{
+    return si->satisfiesBounds(state);// && (const void*)omeg != (const void*)thet;
+}
 ompl::control::SimpleSetupPtr createPendulum(double torque)
 {
     // TODO: Create and setup the pendulum's state space, control space, validity checker, everything you need for
@@ -101,44 +107,28 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
     ompl::control::SimpleSetup ss(controlSpace);
 
     // Return simple setup ptr
-    ompl::control::SimpleSetupPtr ssptr = std::make_shared<ompl::control::SimpleSetup>(ss); // have no idea if this is right lol, whats up with SimpleSetupPtr?
+    ompl::control::SimpleSetupPtr sptr = std::make_shared<ompl::control::SimpleSetup>(ss); // have no idea if this is right lol, whats up with SimpleSetupPtr?
     // ompl::control::SimpleSetupPtr ssptr(ss);
     // ompl::control::SimpleSetupPtr ssptr;
-    return ssptr;
 
-}
-
-bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::State *state)
-{
-    return si->satisfiesBounds(state);// && (const void*)omeg != (const void*)thet;
-}
-
-void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
-{
-    // TODO: Do some motion planning for the pendulum
-    // choice is what planner to use.
-
-    //auto cspace = ss->getControlSpace();
-    auto space  = ss->getStateSpace();
 
     // construct an instance of  space information from this control space
     //auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
 
-    ompl::control::ODESolverPtr odeSolver (new ompl::control::ODEBasicSolver<> (ss->getSpaceInformation(), &pendulumODE));
+    ompl::control::ODESolverPtr odeSolver (new ompl::control::ODEBasicSolver<> (sptr->getSpaceInformation(), &pendulumODE));
 
 
     // set the state propagation routine
-    ss->setStatePropagator(ompl::control::ODESolver::getStatePropagator(odeSolver));
+    sptr->setStatePropagator(ompl::control::ODESolver::getStatePropagator(odeSolver));
     // ss->setStatePropagator(propagate);
-    ss->getSpaceInformation()->setPropagationStepSize(0.01);
+    sptr->getSpaceInformation()->setPropagationStepSize(0.01);
     // set state validity checking for this space
-    ss->setStateValidityChecker([&ss](const ompl::base::State *state) { return isStateValid(ss->getSpaceInformation().get(), state); });
+    sptr->setStateValidityChecker([&sptr](const ompl::base::State *state) { return isStateValid(sptr->getSpaceInformation().get(), state); });
     
 
-
-
-
-
+    // TODO: Do some motion planning for the pendulum
+    // choice is what planner to use.
+    auto space  = sptr->getStateSpace();
 
     // Create start state
     ompl::base::ScopedState<> start(space);
@@ -151,7 +141,16 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     goal[1] = 0; // Goal velocity
 
     // set the start and goal states
-    ss->setStartAndGoalStates(start, goal, 0.05);
+    sptr->setStartAndGoalStates(start, goal, 0.05);
+    sptr->setup();
+
+    return sptr;
+
+}
+
+
+void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
+{
 
     // attempt to solve the problem within one second of planning time
     ompl::base::PlannerStatus solved = ss->solve(100.0);
@@ -173,9 +172,23 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
     }
 }
 
-void benchmarkPendulum(ompl::control::SimpleSetupPtr &/* ss */)
+void benchmarkPendulum(ompl::control::SimpleSetupPtr & ss )
 {
     // TODO: Do some benchmarking for the pendulum
+    double runtime_limit = 60.0;
+    double memory_limit = 100000.0;  // set high because memory usage is not always estimated correctly
+    int run_count = 50;
+    std::string benchmark_name = std::string("pendulum");
+
+    ompl::tools::Benchmark::Request request(runtime_limit, memory_limit, run_count);
+    ompl::tools::Benchmark b(*ss, benchmark_name);
+
+    // TODO: Add additional planners when they work
+    b.addPlanner(std::make_shared<ompl::geometric::RRT>(ss->getSpaceInformation()));
+
+    b.benchmark(request);
+    b.saveResultsToFile();
+
 }
 
 int main(int /* argc */, char ** /* argv */)
