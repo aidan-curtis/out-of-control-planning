@@ -19,7 +19,7 @@
 #include <fstream>
 #include <cmath>
 #include <ompl/control/planners/rrt/RRT.h>
-#include <ompl/geometric/planners/rrt/RRT.h>
+#include <ompl/control/planners/rrt/RRT.h>
 
 
 // Your implementation of RG-RRT
@@ -183,19 +183,9 @@ ompl::control::SimpleSetupPtr createCar(std::vector<Rectangle> &  obstacles )
     // ss->setStatePropagator(propagate);
     ssptr->getSpaceInformation()->setPropagationStepSize(0.05);
 
-    return ssptr;
-}
-
-
-
-
-
-
-void planCar(ompl::control::SimpleSetupPtr & ss, int choice)
-{
     // TODO: Do some motion planning for the car
     // choice is what planner to use.
-    auto space  = ss->getStateSpace();
+    auto space  = ssptr->getStateSpace();
 
 
     // Create start state
@@ -215,8 +205,18 @@ void planCar(ompl::control::SimpleSetupPtr & ss, int choice)
 
 
     // set the start and goal states
-    ss->setStartAndGoalStates(start, goal, 0.2);
+    ssptr->setStartAndGoalStates(start, goal, 0.2);
     
+    return ssptr;
+}
+
+
+
+
+
+
+void planCar(ompl::control::SimpleSetupPtr & ss, int choice)
+{    
     ompl::base::PlannerPtr planner(new ompl::control::RRT(ss->getSpaceInformation()));
     ss->setPlanner(planner);
     // attempt to solve the problem within one second of planning time
@@ -241,17 +241,18 @@ void planCar(ompl::control::SimpleSetupPtr & ss, int choice)
 
 void benchmarkCar(ompl::control::SimpleSetupPtr & ss )
 {
-        // TODO: Do some benchmarking for the pendulum
+    // TODO: Do some benchmarking for the pendulum
     double runtime_limit = 60.0;
-    double memory_limit = 10000.0;  // set high because memory usage is not always estimated correctly
+    double memory_limit = 100000.0;  // set high because memory usage is not always estimated correctly
     int run_count = 50;
-    std::string benchmark_name = std::string("car");
+    std::string benchmark_name = std::string("pendulum");
 
     ompl::tools::Benchmark::Request request(runtime_limit, memory_limit, run_count);
     ompl::tools::Benchmark b(*ss, benchmark_name);
 
     // TODO: Add additional planners when they work
-    b.addPlanner(std::make_shared<ompl::geometric::RRT>(ss->getSpaceInformation()));
+    b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RRT(ss->getSpaceInformation())));
+
 
     b.benchmark(request);
     b.saveResultsToFile();

@@ -15,7 +15,7 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/base/spaces/SO2StateSpace.h>
 #include <ompl/tools/benchmark/Benchmark.h>
-#include <ompl/geometric/planners/rrt/RRT.h>
+#include <ompl/control/planners/rrt/RRT.h>
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
@@ -142,7 +142,6 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
 
     // set the start and goal states
     sptr->setStartAndGoalStates(start, goal, 0.05);
-    sptr->setup();
 
     return sptr;
 
@@ -174,6 +173,7 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
 
 void benchmarkPendulum(ompl::control::SimpleSetupPtr & ss )
 {
+
     // TODO: Do some benchmarking for the pendulum
     double runtime_limit = 60.0;
     double memory_limit = 100000.0;  // set high because memory usage is not always estimated correctly
@@ -184,11 +184,11 @@ void benchmarkPendulum(ompl::control::SimpleSetupPtr & ss )
     ompl::tools::Benchmark b(*ss, benchmark_name);
 
     // TODO: Add additional planners when they work
-    b.addPlanner(std::make_shared<ompl::geometric::RRT>(ss->getSpaceInformation()));
+    b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RRT(ss->getSpaceInformation())));
+
 
     b.benchmark(request);
     b.saveResultsToFile();
-
 }
 
 int main(int /* argc */, char ** /* argv */)
