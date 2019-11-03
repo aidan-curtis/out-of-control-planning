@@ -15,6 +15,10 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/base/spaces/SO2StateSpace.h>
 
+// Planner includes
+#include <ompl/control/planners/rrt/RRT.h>
+#include <ompl/control/planners/kpiece/KPIECE1.h>
+
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
 #include <fstream>
@@ -27,19 +31,25 @@ const double GRAVITY = 9.81;
 class PendulumProjection : public ompl::base::ProjectionEvaluator
 {
 public:
-    PendulumProjection(const ompl::base::StateSpace *space) : ProjectionEvaluator(space)
+    PendulumProjection(const ompl::base::StateSpacePtr space) : ProjectionEvaluator(space)
+    // PendulumProjection(const ompl::base::StateSpace *space) : ProjectionEvaluator(space)
     {
     }
 
     unsigned int getDimension() const override
     {
         // TODO: The dimension of your projection for the pendulum
-        return 0;
+        return 1;
+        // return 0;
     }
 
-    void project(const ompl::base::State */* state */, Eigen::Ref<Eigen::VectorXd> /* projection */) const override
+    void project(const ompl::base::State *state, Eigen::Ref<Eigen::VectorXd> projection) const override
     {
         // TODO: Your projection for the pendulum
+        // const double *values = state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+        // projection(0)
+        // projection(0) = (values[0] + values[1]) / 2.0;
+        // projection(1) = (values[2] + values[3]) / 2.0;
     }
 };
 
@@ -122,13 +132,13 @@ bool isStateValid(const ompl::control::SpaceInformation *si, const ompl::base::S
     return si->satisfiesBounds(state);// && (const void*)omeg != (const void*)thet;
 }
 
-void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
+void planPendulum(ompl::control::SimpleSetupPtr & ss, int choice)
 {
     // TODO: Do some motion planning for the pendulum
     // choice is what planner to use.
 
     //auto cspace = ss->getControlSpace();
-    auto space  = ss->getStateSpace();
+    auto space = ss->getStateSpace();
 
     // construct an instance of  space information from this control space
     //auto si(std::make_shared<ompl::control::SpaceInformation>(space, cspace));
@@ -146,9 +156,6 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
 
 
 
-
-
-
     // Create start state
     ompl::base::ScopedState<> start(space);
     start[0] = -1 * M_PI/2; // Initial position
@@ -161,6 +168,26 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
 
     // set the start and goal states
     ss->setStartAndGoalStates(start, goal, 0.05);
+
+    // set planner depending on user input choice
+    if (choice == 1) // RRT
+    {
+        ss->setPlanner(std::make_shared<ompl::control::RRT>(ss->getSpaceInformation()));
+    }
+    else if (choice == 2) // KPIECE1
+    {
+        ompl::base::PlannerPtr kplanner = std::make_shared<ompl::control::KPIECE1>(ss->getSpaceInformation());
+
+        space->registerProjection("PendulumProjection", ompl::base::ProjectionEvaluatorPtr(new PendulumProjection(space)));
+        kplanner->as<ompl::control::KPIECE1>()->setProjectionEvaluator("PendulumProjection");
+
+        ss->setPlanner(kplanner);
+    }
+    else if (choice == 3) // RG-RRT
+    {
+        // ss->setPlanner(std::make_shared<ompl::control::RG-RRT>(ss->getSpaceInformation()));
+    }
+    
 
     // attempt to solve the problem within one second of planning time
     ompl::base::PlannerStatus solved = ss->solve(100.0);
