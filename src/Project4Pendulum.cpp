@@ -150,7 +150,8 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
 
 void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
 {
-
+    ompl::base::PlannerPtr planner(new ompl::control::RRT(ss->getSpaceInformation()));
+    ss->setPlanner(planner);
     // attempt to solve the problem within one second of planning time
     ompl::base::PlannerStatus solved = ss->solve(100.0);
 

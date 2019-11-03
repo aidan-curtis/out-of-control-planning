@@ -37,7 +37,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         filename = sys.argv[1]
     else:
-        filename = 'path.txt'
+        filename = 'pendulum_path.txt'
 
     path = readPath(filename)
     plotR2(path)
