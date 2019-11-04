@@ -1,12 +1,13 @@
 ///////////////////////////////////////
 // COMP/ELEC/MECH 450/550
 // Project 4
-// Authors: FILL ME OUT!!
+// Authors: Aidan Curtis & Patrick Han
 //////////////////////////////////////
 
 #include "RG-RRT.h"
 #include "ompl/base/goals/GoalSampleableRegion.h"
 #include "ompl/tools/config/SelfConfig.h"
+#include <ompl/control/spaces/RealVectorControlSpace.h>
 #include <limits>
 
 ompl::control::RGRRT::RGRRT(const SpaceInformationPtr &si) : base::Planner(si, "RGRRT")
@@ -18,7 +19,7 @@ ompl::control::RGRRT::RGRRT(const SpaceInformationPtr &si) : base::Planner(si, "
     Planner::declareParam<bool>("intermediate_states", this, &RGRRT::setIntermediateStates, &RGRRT::getIntermediateStates);
 }
 
-ompl::control::RGRRT::~RGRRT()
+ompl::control::RGRRT::~RGRRT() // destructor
 {
     freeMemory();
 }
@@ -73,7 +74,23 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
         auto *motion = new Motion(siC_);
         si_->copyState(motion->state, st);
         siC_->nullControl(motion->control);
-        nn_->add(motion);
+
+        // Propagation for input states
+        for (int iter_prop = -10; iter_prop <= 10; iter_prop = iter_prop + 2) // {-10, -8, ..., 8, 10}
+        {
+        ompl::base::State *state_to_propagate = motion->state; // State to propagate
+        
+        ompl::control::Control *control_to_propagate = motion->control; // Control to propagate
+        double *u = control_to_propagate->as<ompl::control::RealVectorControlSpace::ControlType>()->values; // cast control to desired type
+        u[0] = iter_prop;
+
+        ompl::base::State *propagated_state = nullptr; // Initialize resulting state
+
+        siC_->propagate(state_to_propagate, control_to_propagate, 1, propagated_state); // apply controls for "small period of time" = 1
+        motion->ReachableSet.push_back(propagated_state); // Add propagation to Reachable states R(q)
+        }
+
+        nn_->add(motion); // add our input motions to the nearest neighbor structure
     }
 
     if (nn_->size() == 0)
