@@ -2,3 +2,5 @@
 *.o
 Project4Car
 Project4Pendulum
+pendulum_path.txt
+car_path.txt

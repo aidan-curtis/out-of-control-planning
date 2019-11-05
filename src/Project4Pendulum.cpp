@@ -16,6 +16,7 @@
 #include <ompl/base/spaces/SO2StateSpace.h>
 #include <ompl/tools/benchmark/Benchmark.h>
 #include <ompl/control/planners/rrt/RRT.h>
+#include <ompl/control/planners/kpiece/KPIECE1.h>
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
@@ -148,10 +149,22 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
 }
 
 
-void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
+void planPendulum(ompl::control::SimpleSetupPtr & ss, int  choice )
 {
-    ompl::base::PlannerPtr planner(new ompl::control::RRT(ss->getSpaceInformation()));
-    ss->setPlanner(planner);
+
+    if(choice == 1){
+        ompl::base::PlannerPtr planner(new ompl::control::RRT(ss->getSpaceInformation()));
+        ss->setPlanner(planner);
+    }
+    else if(choice == 2){
+        ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
+        // TODO: Need to add projection stuff here when it is ready
+        ss->setPlanner(planner);
+    }
+    else if(choice == 3){
+        ompl::base::PlannerPtr planner(new ompl::control::RGRRT(ss->getSpaceInformation()));
+        ss->setPlanner(planner);
+    }
     // attempt to solve the problem within one second of planning time
     ompl::base::PlannerStatus solved = ss->solve(100.0);
 
@@ -184,9 +197,10 @@ void benchmarkPendulum(ompl::control::SimpleSetupPtr & ss )
     ompl::tools::Benchmark::Request request(runtime_limit, memory_limit, run_count);
     ompl::tools::Benchmark b(*ss, benchmark_name);
 
-    // TODO: Add additional planners when they work
     b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RRT(ss->getSpaceInformation())));
-
+    // TODO: Add projection stuff when it is working
+    // b.addPlanner(ompl::base::PlannerPtr(new ompl::control::KPIECE1(ss->getSpaceInformation())));
+    b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RGRRT(ss->getSpaceInformation())));
 
     b.benchmark(request);
     b.saveResultsToFile();
