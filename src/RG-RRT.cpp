@@ -72,15 +72,12 @@ void ompl::control::RGRRT::GenerateReachableSet(Motion* motion){
     for (int iter_prop = low[0]; iter_prop <= high[0]; iter_prop = range/10.0) // {-10, -8, ..., 8, 10}
     {
         ompl::base::State *state_to_propagate = motion->state; // State to propagate
-        
         ompl::control::Control *control_to_propagate = motion->control; // Control to propagate
         double *u = control_to_propagate->as<ompl::control::RealVectorControlSpace::ControlType>()->values; // cast control to desired type
         u[0] = iter_prop;
-
-        ompl::base::State *propagated_state = nullptr; // Initialize resulting state
-
-        siC_->propagate(state_to_propagate, control_to_propagate, 1, propagated_state); // apply controls for "small period of time" = 1
-        motion->ReachableSet.push_back(propagated_state); // Add propagation to Reachable states R(q)
+        Motion *m = new Motion(siC_);
+        m->steps = siC_->propagateWhileValid(state_to_propagate, control_to_propagate, 1, m->state); // apply controls for "small period of time" = 1
+        motion->ReachableSet.push_back(m); // Add propagation to Reachable states R(q)
     }
 }
 ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTerminationCondition &ptc)
@@ -123,7 +120,9 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
     while (ptc == false)
     {
         // Continue until we find a feasible neighbor
-        while(1) {
+        int closest_node = -1;
+        std::cout<<"Going into loop\n"<<std::endl;
+        while(closest_node == -1) {
             /* sample random state (with goal biasing) */
             if (goal_s && rng_.uniform01() < goalBias_ && goal_s->canSample())
                 goal_s->sampleGoal(rstate);
@@ -135,22 +134,19 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
 
             // Now we need to find the closest state in the feasible set
             double closest_distance = si_->distance(nmotion->state, rmotion->state);
-            int closest_node = -1;
 
             for (int i = 0; i < int(nmotion->ReachableSet.size()); i++){
-                double reach_distance = si_->distance(nmotion->ReachableSet[i], rmotion->state);
+                double reach_distance = si_->distance(nmotion->ReachableSet[i]->state, rmotion->state);
                 if(reach_distance<closest_distance){
                     closest_distance = reach_distance;
                     closest_node = i;
                 }
             }
-            if(closest_node != -1){
-                break;
-            }
         }
+        std::cout<<"coming out of loop\n"<<std::endl;
 
         /* sample a random control that attempts to go towards the random state, and also sample a control duration */
-        unsigned int cd = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
+        unsigned int cd = nmotion->ReachableSet[closest_node]->steps;
 
         if (addIntermediateStates_)
         {
