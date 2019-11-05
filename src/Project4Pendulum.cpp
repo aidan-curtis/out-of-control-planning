@@ -17,10 +17,7 @@
 #include <ompl/tools/benchmark/Benchmark.h>
 #include <ompl/control/planners/rrt/RRT.h>
 #include <ompl/control/planners/kpiece/KPIECE1.h>
-<<<<<<< HEAD
 
-=======
->>>>>>> master
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
