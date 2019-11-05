@@ -39,15 +39,15 @@ public:
     unsigned int getDimension() const override
     {
         // TODO: The dimension of your projection for the pendulum
-        return 1;
+        return 2;
     }
 
 
     virtual void defaultCellSizes(void)
     {
-        cellSizes_.resize(1);
-        cellSizes_[0] = 1.5;
-        // cellSizes_[1] = 0.25;
+        cellSizes_.resize(2);
+        cellSizes_[0] = 0.1;
+        cellSizes_[1] = 0.25;
     }
 
 
@@ -57,12 +57,10 @@ public:
         // TODO: Your projection for the pendulum
         const ompl::base::CompoundState* so2r1_state_ptr = state->as<ompl::base::CompoundState>();
         auto so2state = so2r1_state_ptr->as<ompl::base::SO2StateSpace::StateType>(0);
-        // auto r1state = so2r1_state_ptr->as<ompl::base::RealVectorStateSpace::StateType>(1);
+        auto r1state = so2r1_state_ptr->as<ompl::base::RealVectorStateSpace::StateType>(1);
 
-
-        // std::cout << so2state->value <<std::endl;
         projection(0) = so2state->value;
-        // projection(1) = r1state->values[0];
+        projection(1) = r1state->values[0];
 
         // projection(0) = so2r1_state_ptr->as<ompl::base::SO2StateSpace::StateType>(0)->value;
         // projection(1) = (values[2] + values[3]) / 2.0;
