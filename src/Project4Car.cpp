@@ -30,17 +30,17 @@
 class CarProjection : public ompl::base::ProjectionEvaluator
 {
 public:
-    CarProjection(const ompl::base::StateSpace *space) : ProjectionEvaluator(space)
+    // CarProjection(const ompl::base::StateSpace *space) : ProjectionEvaluator(space)
+    CarProjection(const ompl::base::StateSpacePtr space) : ProjectionEvaluator(space)
     {
     }
 
     unsigned int getDimension() const override
     {
-        // TODO: The dimension of your projection for the car
-        return 0;
+        return 2;
     }
 
-    void project(const ompl::base::State * /* state */, Eigen::Ref<Eigen::VectorXd> /* projection */) const override
+    void project(const ompl::base::State * state , Eigen::Ref<Eigen::VectorXd>  projection ) const override
     {
         // TODO: Your projection for the car
     }
@@ -257,14 +257,18 @@ void benchmarkCar(ompl::control::SimpleSetupPtr & ss )
     double runtime_limit = 60.0;
     double memory_limit = 100000.0;  // set high because memory usage is not always estimated correctly
     int run_count = 50;
-    std::string benchmark_name = std::string("pendulum");
+    std::string benchmark_name = std::string("car");
 
     ompl::tools::Benchmark::Request request(runtime_limit, memory_limit, run_count);
     ompl::tools::Benchmark b(*ss, benchmark_name);
 
     b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RRT(ss->getSpaceInformation())));
     // TODO: Add projection stuff when it is working
-    // b.addPlanner(ompl::base::PlannerPtr(new ompl::control::KPIECE1(ss->getSpaceInformation())));
+    ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
+    auto space = ss->getStateSpace();
+    space->registerProjection("CarProjection", ompl::base::ProjectionEvaluatorPtr(new CarProjection(space)));
+    planner->as<ompl::control::KPIECE1>()->setProjectionEvaluator("CarProjection");
+    b.addPlanner(planner); 
     b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RGRRT(ss->getSpaceInformation())));
 
 

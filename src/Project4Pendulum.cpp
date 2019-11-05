@@ -221,7 +221,11 @@ void benchmarkPendulum(ompl::control::SimpleSetupPtr & ss )
 
     b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RRT(ss->getSpaceInformation())));
     // TODO: Add projection stuff when it is working
-    // b.addPlanner(ompl::base::PlannerPtr(new ompl::control::KPIECE1(ss->getSpaceInformation())));
+    ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
+    auto space = ss->getStateSpace();
+    space->registerProjection("PendulumProjection", ompl::base::ProjectionEvaluatorPtr(new PendulumProjection(space)));
+    planner->as<ompl::control::KPIECE1>()->setProjectionEvaluator("PendulumProjection");
+    b.addPlanner(planner);    
     b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RGRRT(ss->getSpaceInformation())));
 
     b.benchmark(request);
