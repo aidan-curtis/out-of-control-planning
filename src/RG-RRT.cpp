@@ -69,7 +69,7 @@ void ompl::control::RGRRT::GenerateReachableSet(Motion* motion){
     const std::vector<double>& high = siC_->getControlSpace()->as<RealVectorControlSpace>()->getBounds().high;
     double range = high[0]-low[0];
     // Propagation for input states
-    for (int iter_prop = low[0]; iter_prop <= high[0]; iter_prop = range/10.0) // {-10, -8, ..., 8, 10}
+    for (int iter_prop = low[0]; iter_prop <= high[0]; iter_prop += range/10.0) // {-10, -8, ..., 8, 10}
     {
         ompl::base::State *state_to_propagate = motion->state; // State to propagate
         ompl::control::Control *control_to_propagate = motion->control; // Control to propagate
