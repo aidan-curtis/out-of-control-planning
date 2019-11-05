@@ -63,6 +63,26 @@ void ompl::control::RGRRT::freeMemory()
     }
 }
 
+
+void ompl::control::RGRRT::GenerateReachableSet(Motion* motion){
+    const std::vector<double>& low = siC_->getControlSpace()->as<RealVectorControlSpace>()->getBounds().low;
+    const std::vector<double>& high = siC_->getControlSpace()->as<RealVectorControlSpace>()->getBounds().high;
+    double range = high[0]-low[0];
+    // Propagation for input states
+    for (int iter_prop = low[0]; iter_prop <= high[0]; iter_prop = range/10.0) // {-10, -8, ..., 8, 10}
+    {
+        ompl::base::State *state_to_propagate = motion->state; // State to propagate
+        
+        ompl::control::Control *control_to_propagate = motion->control; // Control to propagate
+        double *u = control_to_propagate->as<ompl::control::RealVectorControlSpace::ControlType>()->values; // cast control to desired type
+        u[0] = iter_prop;
+
+        ompl::base::State *propagated_state = nullptr; // Initialize resulting state
+
+        siC_->propagate(state_to_propagate, control_to_propagate, 1, propagated_state); // apply controls for "small period of time" = 1
+        motion->ReachableSet.push_back(propagated_state); // Add propagation to Reachable states R(q)
+    }
+}
 ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTerminationCondition &ptc)
 {
     checkValidity();
@@ -74,22 +94,7 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
         auto *motion = new Motion(siC_);
         si_->copyState(motion->state, st);
         siC_->nullControl(motion->control);
-
-        // Propagation for input states
-        for (int iter_prop = -10; iter_prop <= 10; iter_prop = iter_prop + 2) // {-10, -8, ..., 8, 10}
-        {
-        ompl::base::State *state_to_propagate = motion->state; // State to propagate
-        
-        ompl::control::Control *control_to_propagate = motion->control; // Control to propagate
-        double *u = control_to_propagate->as<ompl::control::RealVectorControlSpace::ControlType>()->values; // cast control to desired type
-        u[0] = iter_prop;
-
-        ompl::base::State *propagated_state = nullptr; // Initialize resulting state
-
-        siC_->propagate(state_to_propagate, control_to_propagate, 1, propagated_state); // apply controls for "small period of time" = 1
-        motion->ReachableSet.push_back(propagated_state); // Add propagation to Reachable states R(q)
-        }
-
+        GenerateReachableSet(motion);
         nn_->add(motion); // add our input motions to the nearest neighbor structure
     }
 
@@ -114,17 +119,35 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
     base::State *rstate = rmotion->state;
     Control *rctrl = rmotion->control;
     base::State *xstate = si_->allocState();
-
+    Motion *nmotion;
     while (ptc == false)
     {
-        /* sample random state (with goal biasing) */
-        if (goal_s && rng_.uniform01() < goalBias_ && goal_s->canSample())
-            goal_s->sampleGoal(rstate);
-        else
-            sampler_->sampleUniform(rstate);
+        // Continue until we find a feasible neighbor
+        while(1) {
+            /* sample random state (with goal biasing) */
+            if (goal_s && rng_.uniform01() < goalBias_ && goal_s->canSample())
+                goal_s->sampleGoal(rstate);
+            else
+                sampler_->sampleUniform(rstate);
 
-        /* find closest state in the tree */
-        Motion *nmotion = nn_->nearest(rmotion);
+            /* find closest state in the tree */
+            nmotion = nn_->nearest(rmotion);
+
+            // Now we need to find the closest state in the feasible set
+            double closest_distance = si_->distance(nmotion->state, rmotion->state);
+            int closest_node = -1;
+
+            for (int i = 0; i < int(nmotion->ReachableSet.size()); i++){
+                double reach_distance = si_->distance(nmotion->ReachableSet[i], rmotion->state);
+                if(reach_distance<closest_distance){
+                    closest_distance = reach_distance;
+                    closest_node = i;
+                }
+            }
+            if(closest_node != -1){
+                break;
+            }
+        }
 
         /* sample a random control that attempts to go towards the random state, and also sample a control duration */
         unsigned int cd = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
@@ -151,6 +174,9 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
                     motion->steps = 1;
                     motion->parent = lastmotion;
                     lastmotion = motion;
+
+                    // Generate the reachable set for the node we're about to add
+                    GenerateReachableSet(motion);
                     nn_->add(motion);
                     double dist = 0.0;
                     solved = goal->isSatisfied(motion->state, &dist);
@@ -188,6 +214,8 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
                 motion->steps = cd;
                 motion->parent = nmotion;
 
+                // Generate the reachable set for the node we're about to add
+                GenerateReachableSet(motion);
                 nn_->add(motion);
                 double dist = 0.0;
                 bool solv = goal->isSatisfied(motion->state, &dist);

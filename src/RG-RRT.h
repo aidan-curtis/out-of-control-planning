@@ -106,17 +106,8 @@ namespace ompl
                 /** \brief The parent motion in the exploration tree */
                 Motion *parent{nullptr};
 
-
-
-
                 // Reachable set R(q)
                 std::vector<base::State*> ReachableSet;
-
-
-
-
-
-
             };
 
             /** \brief Free the memory allocated by this planner */
@@ -152,6 +143,9 @@ namespace ompl
 
             /** \brief The most recent goal motion.  Used for PlannerData computation */
             Motion *lastGoalMotion_{nullptr};
+
+
+            void GenerateReachableSet(Motion* motion);
         };
     }
 }
