@@ -16,6 +16,8 @@
 #include <ompl/base/spaces/SO2StateSpace.h>
 #include <ompl/tools/benchmark/Benchmark.h>
 #include <ompl/control/planners/rrt/RRT.h>
+#include <ompl/control/planners/kpiece/KPIECE1.h>
+
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
@@ -29,21 +31,44 @@ const double GRAVITY = 9.81;
 class PendulumProjection : public ompl::base::ProjectionEvaluator
 {
 public:
-    PendulumProjection(const ompl::base::StateSpace *space) : ProjectionEvaluator(space)
+    PendulumProjection(const ompl::base::StateSpacePtr space) : ProjectionEvaluator(space)
+    // PendulumProjection(const ompl::base::StateSpace *space) : ProjectionEvaluator(space)
     {
     }
 
     unsigned int getDimension() const override
     {
         // TODO: The dimension of your projection for the pendulum
-        return 0;
+        return 1;
     }
 
-    void project(const ompl::base::State */* state */, Eigen::Ref<Eigen::VectorXd> /* projection */) const override
+
+    virtual void defaultCellSizes(void)
+    {
+        cellSizes_.resize(1);
+        cellSizes_[0] = 1.5;
+        // cellSizes_[1] = 0.25;
+    }
+
+
+
+    void project(const ompl::base::State *state, Eigen::Ref<Eigen::VectorXd> projection) const override
     {
         // TODO: Your projection for the pendulum
+        const ompl::base::CompoundState* so2r1_state_ptr = state->as<ompl::base::CompoundState>();
+        auto so2state = so2r1_state_ptr->as<ompl::base::SO2StateSpace::StateType>(0);
+        // auto r1state = so2r1_state_ptr->as<ompl::base::RealVectorStateSpace::StateType>(1);
+
+
+        // std::cout << so2state->value <<std::endl;
+        projection(0) = so2state->value;
+        // projection(1) = r1state->values[0];
+
+        // projection(0) = so2r1_state_ptr->as<ompl::base::SO2StateSpace::StateType>(0)->value;
+        // projection(1) = (values[2] + values[3]) / 2.0;
     }
 };
+
 
 void pendulumODE(const ompl::control::ODESolver::StateType & q, const ompl::control::Control * c,
                  ompl::control::ODESolver::StateType & qdot)
@@ -141,19 +166,35 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
     goal[1] = 0; // Goal velocity
 
     // set the start and goal states
-    sptr->setStartAndGoalStates(start, goal, 0.05);
+    // sptr->setStartAndGoalStates(start, goal, 0.05);
+    sptr->setStartAndGoalStates(start, goal, 0.1);
 
     return sptr;
 
 }
 
 
-void planPendulum(ompl::control::SimpleSetupPtr & ss, int /* choice */)
+void planPendulum(ompl::control::SimpleSetupPtr & ss, int choice)
 {
-    ompl::base::PlannerPtr planner(new ompl::control::RRT(ss->getSpaceInformation()));
-    ss->setPlanner(planner);
+    if(choice == 1){
+        ompl::base::PlannerPtr planner(new ompl::control::RRT(ss->getSpaceInformation()));
+        ss->setPlanner(planner);
+    }
+    else if(choice == 2){
+        ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
+        auto space = ss->getStateSpace();
+        // ompl::base::StateSpace *space_normal_ptr = space.get();
+        space->registerProjection("PendulumProjection", ompl::base::ProjectionEvaluatorPtr(new PendulumProjection(space)));
+        planner->as<ompl::control::KPIECE1>()->setProjectionEvaluator("PendulumProjection");
+        ss->setPlanner(planner);
+    }
+    else if(choice == 3){
+        // ompl::base::PlannerPtr planner(new ompl::control::RGRRT(ss->getSpaceInformation()));
+        // ss->setPlanner(planner);
+    }
+    
     // attempt to solve the problem within one second of planning time
-    ompl::base::PlannerStatus solved = ss->solve(100.0);
+    ompl::base::PlannerStatus solved = ss->solve(800.0);
 
 
     if (solved)
