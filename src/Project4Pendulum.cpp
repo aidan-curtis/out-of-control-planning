@@ -17,7 +17,10 @@
 #include <ompl/tools/benchmark/Benchmark.h>
 #include <ompl/control/planners/rrt/RRT.h>
 #include <ompl/control/planners/kpiece/KPIECE1.h>
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
 
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
@@ -38,7 +41,6 @@ public:
 
     unsigned int getDimension() const override
     {
-        // TODO: The dimension of your projection for the pendulum
         return 2;
     }
 
@@ -54,16 +56,12 @@ public:
 
     void project(const ompl::base::State *state, Eigen::Ref<Eigen::VectorXd> projection) const override
     {
-        // TODO: Your projection for the pendulum
         const ompl::base::CompoundState* so2r1_state_ptr = state->as<ompl::base::CompoundState>();
         auto so2state = so2r1_state_ptr->as<ompl::base::SO2StateSpace::StateType>(0);
         auto r1state = so2r1_state_ptr->as<ompl::base::RealVectorStateSpace::StateType>(1);
 
         projection(0) = so2state->value;
         projection(1) = r1state->values[0];
-
-        // projection(0) = so2r1_state_ptr->as<ompl::base::SO2StateSpace::StateType>(0)->value;
-        // projection(1) = (values[2] + values[3]) / 2.0;
     }
 };
 
@@ -174,12 +172,14 @@ ompl::control::SimpleSetupPtr createPendulum(double torque)
 
 void planPendulum(ompl::control::SimpleSetupPtr & ss, int choice)
 {
+
     if(choice == 1){
         ompl::base::PlannerPtr planner(new ompl::control::RRT(ss->getSpaceInformation()));
         ss->setPlanner(planner);
     }
     else if(choice == 2){
         ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
+
         auto space = ss->getStateSpace();
         // ompl::base::StateSpace *space_normal_ptr = space.get();
         space->registerProjection("PendulumProjection", ompl::base::ProjectionEvaluatorPtr(new PendulumProjection(space)));
@@ -187,10 +187,9 @@ void planPendulum(ompl::control::SimpleSetupPtr & ss, int choice)
         ss->setPlanner(planner);
     }
     else if(choice == 3){
-        // ompl::base::PlannerPtr planner(new ompl::control::RGRRT(ss->getSpaceInformation()));
-        // ss->setPlanner(planner);
+        ompl::base::PlannerPtr planner(new ompl::control::RGRRT(ss->getSpaceInformation()));
+        ss->setPlanner(planner);
     }
-    
     // attempt to solve the problem within one second of planning time
     ompl::base::PlannerStatus solved = ss->solve(800.0);
 
@@ -223,9 +222,10 @@ void benchmarkPendulum(ompl::control::SimpleSetupPtr & ss )
     ompl::tools::Benchmark::Request request(runtime_limit, memory_limit, run_count);
     ompl::tools::Benchmark b(*ss, benchmark_name);
 
-    // TODO: Add additional planners when they work
     b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RRT(ss->getSpaceInformation())));
-
+    // TODO: Add projection stuff when it is working
+    // b.addPlanner(ompl::base::PlannerPtr(new ompl::control::KPIECE1(ss->getSpaceInformation())));
+    b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RGRRT(ss->getSpaceInformation())));
 
     b.benchmark(request);
     b.saveResultsToFile();
