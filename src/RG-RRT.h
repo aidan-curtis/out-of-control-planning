@@ -146,6 +146,8 @@ namespace ompl
 
 
             void GenerateReachableSet(Motion* motion);
+            int selectReachableMotion(const Motion* qnear, const Motion* qrand);
+
         };
     }
 }

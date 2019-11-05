@@ -69,14 +69,13 @@ void ompl::control::RGRRT::GenerateReachableSet(Motion* motion){
     const std::vector<double>& high = siC_->getControlSpace()->as<RealVectorControlSpace>()->getBounds().high;
     double range = high[0]-low[0];
     // Propagation for input states
-    for (int iter_prop = low[0]; iter_prop <= high[0]; iter_prop += range/10.0) // {-10, -8, ..., 8, 10}
+    for (double iter_prop = low[0]; iter_prop <= high[0]; iter_prop += range/10.0) // {-10, -8, ..., 8, 10}
     {
-        ompl::base::State *state_to_propagate = motion->state; // State to propagate
-        ompl::control::Control *control_to_propagate = motion->control; // Control to propagate
-        double *u = control_to_propagate->as<ompl::control::RealVectorControlSpace::ControlType>()->values; // cast control to desired type
-        u[0] = iter_prop;
         Motion *m = new Motion(siC_);
-        m->steps = siC_->propagateWhileValid(state_to_propagate, control_to_propagate, 1, m->state); // apply controls for "small period of time" = 1
+        siC_->copyControl(m->control, motion->control);
+        double *u = motion->control->as<ompl::control::RealVectorControlSpace::ControlType>()->values; // cast control to desired type
+        u[0] = iter_prop;
+        m->steps = siC_->propagateWhileValid(motion->state, m->control, 1, m->state); // apply controls for "small period of time"
         motion->ReachableSet.push_back(m); // Add propagation to Reachable states R(q)
     }
 }
@@ -120,8 +119,8 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
     while (ptc == false)
     {
         // Continue until we find a feasible neighbor
+
         int closest_node = -1;
-        std::cout<<"Going into loop\n"<<std::endl;
         while(closest_node == -1) {
             /* sample random state (with goal biasing) */
             if (goal_s && rng_.uniform01() < goalBias_ && goal_s->canSample())
@@ -143,10 +142,8 @@ ompl::base::PlannerStatus ompl::control::RGRRT::solve(const base::PlannerTermina
                 }
             }
         }
-        std::cout<<"coming out of loop\n"<<std::endl;
 
-        /* sample a random control that attempts to go towards the random state, and also sample a control duration */
-        unsigned int cd = nmotion->ReachableSet[closest_node]->steps;
+        unsigned int cd = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
 
         if (addIntermediateStates_)
         {
