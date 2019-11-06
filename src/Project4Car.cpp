@@ -21,8 +21,6 @@
 #include <ompl/control/planners/rrt/RRT.h>
 #include <ompl/control/planners/kpiece/KPIECE1.h>
 
-
-
 // Your implementation of RG-RRT
 #include "RG-RRT.h"
 
@@ -40,9 +38,23 @@ public:
         return 2;
     }
 
+    virtual void defaultCellSizes(void)
+    {
+        cellSizes_.resize(2);
+        cellSizes_[0] = 0.1;
+        cellSizes_[1] = 0.25;
+    }
+
     void project(const ompl::base::State * state , Eigen::Ref<Eigen::VectorXd>  projection ) const override
     {
         // TODO: Your projection for the car
+        const ompl::base::CompoundState* compound_state = state->as<ompl::base::CompoundState>();
+        const ompl::base::RealVectorStateSpace::StateType* r2;
+        r2 = compound_state->as<ompl::base::RealVectorStateSpace::StateType>(0);
+
+        projection(0) = r2->values[0];
+        projection(1) = r2->values[1];
+
     }
 };
 
@@ -224,7 +236,11 @@ void planCar(ompl::control::SimpleSetupPtr & ss, int choice)
     }
     else if(choice == 2){
         ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
-        // TODO: Need to add projection stuff here when it is ready
+
+        auto space = ss->getStateSpace();
+        // ompl::base::StateSpace *space_normal_ptr = space.get();
+        space->registerProjection("CarProjection", ompl::base::ProjectionEvaluatorPtr(new CarProjection(space)));
+        planner->as<ompl::control::KPIECE1>()->setProjectionEvaluator("CarProjection");
         ss->setPlanner(planner);
     }
     else if(choice == 3){
@@ -256,16 +272,17 @@ void benchmarkCar(ompl::control::SimpleSetupPtr & ss )
     // TODO: Do some benchmarking for the pendulum
     double runtime_limit = 60.0;
     double memory_limit = 100000.0;  // set high because memory usage is not always estimated correctly
-    int run_count = 50;
+    int run_count = 20;
     std::string benchmark_name = std::string("car");
 
     ompl::tools::Benchmark::Request request(runtime_limit, memory_limit, run_count);
     ompl::tools::Benchmark b(*ss, benchmark_name);
 
     b.addPlanner(ompl::base::PlannerPtr(new ompl::control::RRT(ss->getSpaceInformation())));
-    // TODO: Add projection stuff when it is working
-    ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
+
     auto space = ss->getStateSpace();
+
+    ompl::base::PlannerPtr planner(new ompl::control::KPIECE1(ss->getSpaceInformation()));
     space->registerProjection("CarProjection", ompl::base::ProjectionEvaluatorPtr(new CarProjection(space)));
     planner->as<ompl::control::KPIECE1>()->setProjectionEvaluator("CarProjection");
     b.addPlanner(planner); 
